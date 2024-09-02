@@ -1,6 +1,7 @@
 ﻿#include "stdafx.h"
 #include "CPlayerUIHelper.h"
 #include "MusicPlayer2.h"
+#include "Player.h"
 
 
 CPlayerUIHelper::CPlayerUIHelper()
@@ -74,7 +75,7 @@ UIColors CPlayerUIHelper::GetUIColors(const ColorTable & colorTable, bool dark, 
 
 bool CPlayerUIHelper::IsMidiLyric()
 {
-    return CPlayer::GetInstance().IsMidi() && theApp.m_general_setting_data.midi_use_inner_lyric && !CPlayer::GetInstance().MidiNoLyric();
+    return CPlayer::GetInstance().IsMidi() && theApp.m_play_setting_data.midi_use_inner_lyric && !CPlayer::GetInstance().MidiNoLyric();
 }
 
 bool CPlayerUIHelper::IsDrawStatusBar()
@@ -87,7 +88,7 @@ bool CPlayerUIHelper::IsDrawStatusBar()
 double CPlayerUIHelper::GetScrollTextPixel()
 {
     //界面刷新频率越高，即界面刷新时间间隔越小，则每次滚动的像素值就要越小
-    double pixel = static_cast<double>(theApp.m_app_setting_data.ui_refresh_interval) * 0.025 + 0.2;
+    double pixel = static_cast<double>(theApp.m_app_setting_data.ui_refresh_interval) * 0.0125 + 0.2;
     pixel = static_cast<double>(theApp.GetDPI()) * pixel / 96;
     if (pixel < 0.1)
         pixel = 0.1;

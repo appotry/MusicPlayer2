@@ -1,6 +1,6 @@
-#pragma once
-#include <afxwin.h>
+﻿#pragma once
 #include "IPlayerUI.h"
+
 class CUIWindow :
     public CStatic
 {
@@ -16,6 +16,7 @@ protected:
     IPlayerUI*& m_pUI;
     bool m_bTitlebarLButtonDown{};
     CPoint m_ptLButtonDown{};
+    IPlayerUI* GetCurUi() const;
 
     virtual void PreSubclassWindow();
     virtual BOOL PreTranslateMessage(MSG* pMsg);

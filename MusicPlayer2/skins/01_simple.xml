@@ -1,4 +1,4 @@
-<root name="%(598)" xmlns="https://github.com/zhongyang219/MusicPlayer2/skin" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/zhongyang219/MusicPlayer2/skin ./skin.xsd"
+<root name="%(TXT_UI_NAME_SIMPLE_UI)" xmlns="https://github.com/zhongyang219/MusicPlayer2/skin" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/zhongyang219/MusicPlayer2/skin ./skin.xsd"
        index="7">
   <ui type="big">
     <verticalLayout margin="4">
@@ -21,6 +21,7 @@
             <placeHolder/>
             <button key="desktopLyric" width="24" height="24" margin="2"/>
             <button key="lyricTranslate" width="24" height="24" margin="2"/>
+            <button key="karaoke" width="24" height="24" margin="2"/>
           </horizontalLayout>
         </verticalLayout>
       </horizontalLayout>
@@ -52,6 +53,7 @@
           <text type="artist" style="scroll" height="24" alignment="center"/>
         </verticalLayout>
         <verticalLayout margin="16">
+          <placeHolder show_when_use_system_titlebar="true" height="20"/>
           <horizontalLayout height="96">
             <albumCover square="true" width="96"/>
             <verticalLayout margin-left="12">

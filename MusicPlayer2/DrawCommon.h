@@ -17,6 +17,7 @@ enum ImageType
     IT_BMP
 };
 
+class DrawAreaGuard;
 
 class CDrawCommon
 {
@@ -42,15 +43,15 @@ public:
         void Reset();
     };
 
-    CDrawCommon();
-    ~CDrawCommon();
+    friend class DrawAreaGuard;
 
-    virtual void Create(CDC* pDC, CWnd* pMainWnd = nullptr);
-    void Create(CDC* pDC, Gdiplus::Graphics* pGraphics, CWnd* pMainWnd = nullptr);
-    //void SetBackColor(COLORREF back_color);		//设置绘制文本时填充的背景颜色
-    //COLORREF GetBackColor() const { return m_backColor; }
-    CFont* SetFont(CFont* pfont);		//设置绘制文本的字体（返回原来的字体）
-	CFont* GetFont() { return m_pfont; }
+    CDrawCommon();
+    virtual ~CDrawCommon(); // 基类析构方法需要是虚方法
+
+    virtual void Create(CDC* pDC, CFont* pFont = nullptr);
+    void Create(CDC* pDC, Gdiplus::Graphics* pGraphics, CFont* pFont = nullptr);
+    CFont* SetFont(CFont* pFont);       // 设置绘制文本的字体（返回原来的字体）
+    CFont* GetFont() { return m_pfont; }
     void SetDC(CDC* pDC);		//设置绘图的DC
     CDC* GetDC()
     {
@@ -95,9 +96,7 @@ public:
     //函数功能和DrawScrollText一样，只是这个函数只会从左到右滚动，不会更换方向
     void DrawScrollText2(CRect rect, LPCTSTR lpszString, COLORREF color, double pixel, bool center, ScrollInfo& scroll_info, bool reset = false);
 
-    static void SetDrawArea(CDC* pDC, CRect rect);
-    void SetDrawArea(CRect rect);
-
+public:
     //绘制一个位图（使用GDI）
     void DrawBitmap(CBitmap& bitmap, CPoint start_point, CSize size, StretchMode stretch_mode, bool no_clip_area = false);
     void DrawBitmap(UINT bitmap_id, CPoint start_point, CSize size, StretchMode stretch_mode, bool no_clip_area = false);
@@ -137,8 +136,6 @@ public:
     static void ImageResize(const CImage& img_src, const wstring& path_dest, int size, ImageType type);
     static void ImageResize(const wstring& path_src, const wstring& path_dest, int size, ImageType type);
 
-    static HICON LoadIconResource(UINT id, int width, int height);
-
     //复制一个bitmap (http://wupei.j2megame.org/archives/86) 
     //(这两个函数未测试成功，复制的图片为全黑色，原因暂时未知，后面再调查)
     static HBITMAP CopyBitmap(HBITMAP hSourceHbitmap);
@@ -147,15 +144,13 @@ public:
     //将一个Bitmap保存到文件
     static void SaveBitmap(HBITMAP bitmap, LPCTSTR path);
 
-    void ImageDrawAreaConvert(CSize image_size, CPoint& start_point, CSize& size, StretchMode stretch_mode, bool no_clip_area);
+    void ImageDrawAreaConvert(CSize image_size, CPoint& start_point, CSize& size, StretchMode stretch_mode);
 
     //计算一个矩形中正方形图标的矩形区域
     static CRect CalculateCenterIconRect(CRect rect, int icon_size);
 
 protected:
     CDC* m_pDC{};		//用于绘图的CDC类的指针
-    CWnd* m_pMainWnd{};	//绘图窗口的句柄
-    //COLORREF m_backColor{ RGB(255,255,255) };
     CFont* m_pfont{};
     Gdiplus::Graphics* m_pGraphics{};
     bool m_auto_destory_graphics{};     //是否自动析构Graphics对象，如果Graphics对象是内部创建的，则为true，如果是从外面传过来的，则为false
@@ -194,3 +189,38 @@ private:
     CBitmap* m_pOldBit;
     CRect m_rect;
 };
+
+
+//用于在UI中设置绘图区域。
+//在需要设置绘图区域时，创建此类的一个局部对象，它会在构造时设置绘图区域，并在析构时恢复上次绘图区域
+class DrawAreaGuard
+{
+public:
+    DrawAreaGuard(const DrawAreaGuard&) = delete;
+    DrawAreaGuard(CDrawCommon* drawer, CRect rect, bool gdi_only = false, bool enable = true)
+        : m_drawer(drawer), m_gdi_only(gdi_only), m_enable(enable)
+    {
+        if (m_drawer != nullptr && m_enable)
+            old_rect = SetDrawArea(rect, gdi_only);
+    }
+
+    ~DrawAreaGuard()
+    {
+        if (m_drawer != nullptr && m_enable)
+            SetDrawArea(old_rect, m_gdi_only);
+    }
+
+private:
+    //设置绘图区域，并返回上次的绘图区域
+    CRect SetDrawArea(CRect rect, bool gdi_only);
+
+    //恢复绘图区域
+    void ResetDrawArea(bool gdi_only);
+
+private:
+    CDrawCommon* m_drawer{};
+    bool m_enable{ true };
+    bool m_gdi_only{};
+    CRect old_rect;
+};
+

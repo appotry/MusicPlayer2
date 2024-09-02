@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "MusicPlayer2.h"
+#include "Player.h"
 #include "AllMediaDlg.h"
 #include "MusicPlayerCmdHelper.h"
 #include "PropertyDlg.h"
@@ -36,7 +37,8 @@ void CAllMediaDlg::RefreshSongList()
     {
         if (index >= 0 && index < static_cast<int>(m_list_data.size()))
         {
-            m_list_songs[index].CopySongInfo(CSongDataManager::GetInstance().GetSongInfo(m_list_songs[index]));
+            SongInfo tmp = CSongDataManager::GetInstance().GetSongInfo3(m_list_songs[index]);
+            std::swap(m_list_songs[index], tmp);
             SetRowData(m_list_data[index], m_list_songs[index]);
         }
     }
@@ -45,13 +47,32 @@ void CAllMediaDlg::RefreshSongList()
 
 void CAllMediaDlg::OnTabEntered()
 {
-    SetButtonsEnable(m_song_list_ctrl.GetCurSel() >= 0);
+    if (m_type == DT_ALL_MEDIA)
+    {
+        SetButtonsEnable(true);
+        SetPlayButtonText(m_song_list_ctrl.GetCurSel() >= 0);
+    }
+    else
+    {
+        SetButtonsEnable(m_song_list_ctrl.GetCurSel() >= 0);
+    }
     if (!m_initialized)
     {
         CWaitCursor wait_cursor;
         InitListData();
         ShowSongList();
         m_initialized = true;
+    }
+}
+
+void CAllMediaDlg::OnTabExited()
+{
+    //切换到其他标签时将按钮恢复为“播放选中”
+    if (m_type == DT_ALL_MEDIA)
+    {
+        CWnd* pParent = GetParentWindow();
+        if (pParent != nullptr)
+            pParent->SetDlgItemTextW(IDC_PLAY_SELECTED, theApp.m_str_table.LoadText(L"TXT_LIB_PLAY_SEL").c_str());
     }
 }
 
@@ -181,7 +202,7 @@ void CAllMediaDlg::QuickSearch(const wstring& key_word)
         const vector<int> search_col{ COL_TITLE, COL_ARTIST, COL_ALBUM, COL_GENRE, COL_PATH };
         for (int col : search_col)
         {
-            if (CCommon::StringFindNoCase(item.at(col), key_word) != wstring::npos)
+            if (theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(key_word, item.at(col)))
             {
                 m_list_data_searched.push_back(item);
                 m_list_songs_searched.push_back(m_list_songs[i]);
@@ -195,13 +216,32 @@ void CAllMediaDlg::SongListClicked(int index)
 {
     m_selected_item = index;
     m_song_list_ctrl.GetItemSelected(m_selected_items);
-    SetButtonsEnable(/*(index >=0 && index < m_song_list_ctrl.GetItemCount()) ||*/ !m_selected_items.empty());
+    bool select_valid = !m_selected_items.empty();
+    if (m_type == DT_ALL_MEDIA)
+        SetPlayButtonText(select_valid);
+    else
+        SetButtonsEnable(select_valid);
 }
 
 void CAllMediaDlg::SetButtonsEnable(bool enable)
 {
     CWnd* pParent = GetParentWindow();
     ::SendMessage(pParent->GetSafeHwnd(), WM_PLAY_SELECTED_BTN_ENABLE, WPARAM(enable), 0);
+}
+
+void CAllMediaDlg::SetPlayButtonText(bool selected_valid)
+{
+    CWnd* pParent = GetParentWindow();
+    if (pParent != nullptr)
+    {
+        //选中了曲目时按钮文本为“播放选中”，否则为“播放”
+        std::wstring text;
+        if (selected_valid)
+            text = theApp.m_str_table.LoadText(L"TXT_LIB_PLAY_SEL");
+        else
+            text = theApp.m_str_table.LoadText(L"UI_TIP_BTN_PLAY");
+        pParent->SetDlgItemTextW(IDC_PLAY_SELECTED, text.c_str());
+    }
 }
 
 const vector<SongInfo>& CAllMediaDlg::GetSongList() const
@@ -276,15 +316,29 @@ void CAllMediaDlg::OnOK()
 
     vector<SongInfo> songs;
     GetSongsSelected(songs);
-    if (!songs.empty())
+    if (!songs.empty() || m_type == DT_ALL_MEDIA)
     {
         bool ok{};
-        if (songs.size() == 1)
-            ok = CPlayer::GetInstance().OpenSongsInDefaultPlaylist(songs);
+        //所有曲目使用媒体库模式播放
+        if (m_type == DT_ALL_MEDIA)
+        {
+            if (songs.empty())
+                ok = CPlayer::GetInstance().SetMediaLibPlaylist(CMediaClassifier::CT_NONE, std::wstring());
+            else
+                ok = CPlayer::GetInstance().SetMediaLibPlaylist(CMediaClassifier::CT_NONE, std::wstring(), -1, songs.front(), true, true);
+        }
         else
-            ok = CPlayer::GetInstance().OpenSongsInTempPlaylist(songs);
+        {
+            if (songs.size() == 1)
+                ok = CPlayer::GetInstance().OpenSongsInDefaultPlaylist(songs);
+            else
+                ok = CPlayer::GetInstance().OpenSongsInTempPlaylist(songs);
+        }
         if (!ok)
-            MessageBox(CCommon::LoadText(IDS_WAIT_AND_RETRY), NULL, MB_ICONINFORMATION | MB_OK);
+        {
+            const wstring& info = theApp.m_str_table.LoadText(L"MSG_WAIT_AND_RETRY");
+            MessageBox(info.c_str(), NULL, MB_ICONINFORMATION | MB_OK);
+        }
         else
         {
             CTabDlg::OnOK();
@@ -302,6 +356,7 @@ BEGIN_MESSAGE_MAP(CAllMediaDlg, CMediaLibTabDlg)
     ON_NOTIFY(NM_RCLICK, IDC_SONG_LIST, &CAllMediaDlg::OnNMRClickSongList)
     ON_NOTIFY(NM_DBLCLK, IDC_SONG_LIST, &CAllMediaDlg::OnNMDblclkSongList)
     ON_MESSAGE(WM_SEARCH_EDIT_BTN_CLICKED, &CAllMediaDlg::OnSearchEditBtnClicked)
+    ON_WM_INITMENU()
 END_MESSAGE_MAP()
 
 
@@ -313,23 +368,22 @@ BOOL CAllMediaDlg::OnInitDialog()
     CMediaLibTabDlg::OnInitDialog();
 
     // TODO:  在此添加额外的初始化
-    CCommon::SetDialogFont(this, theApp.m_pMainWnd->GetFont());     //由于此对话框资源由不同语言共用，所以这里要设置一下字体
 
     //初始化歌曲列表
     m_song_list_ctrl.SetExtendedStyle(m_song_list_ctrl.GetExtendedStyle() | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_LABELTIP);
-    m_song_list_ctrl.InsertColumn(0, CCommon::LoadText(IDS_NUMBER), LVCFMT_LEFT, theApp.DPI(40));
-    m_song_list_ctrl.InsertColumn(1, CCommon::LoadText(IDS_TITLE), LVCFMT_LEFT, theApp.DPI(150));
-    m_song_list_ctrl.InsertColumn(2, CCommon::LoadText(IDS_ARTIST), LVCFMT_LEFT, theApp.DPI(100));
-    m_song_list_ctrl.InsertColumn(3, CCommon::LoadText(IDS_ALBUM), LVCFMT_LEFT, theApp.DPI(150));
-    m_song_list_ctrl.InsertColumn(4, CCommon::LoadText(IDS_TRACK_NUM), LVCFMT_LEFT, theApp.DPI(60));
-    m_song_list_ctrl.InsertColumn(5, CCommon::LoadText(IDS_GENRE), LVCFMT_LEFT, theApp.DPI(100));
-    m_song_list_ctrl.InsertColumn(6, CCommon::LoadText(IDS_BITRATE), LVCFMT_LEFT, theApp.DPI(60));
-    m_song_list_ctrl.InsertColumn(7, CCommon::LoadText(IDS_YEAR), LVCFMT_LEFT, theApp.DPI(60));
-    m_song_list_ctrl.InsertColumn(8, CCommon::LoadText(IDS_FILE_PATH), LVCFMT_LEFT, theApp.DPI(600));
-    m_song_list_ctrl.InsertColumn(9, CCommon::LoadText(IDS_LAST_PLAYED_TIME), LVCFMT_LEFT, theApp.DPI(140));
+    m_song_list_ctrl.InsertColumn(0, theApp.m_str_table.LoadText(L"TXT_SERIAL_NUMBER").c_str(), LVCFMT_LEFT, theApp.DPI(40));
+    m_song_list_ctrl.InsertColumn(1, theApp.m_str_table.LoadText(L"TXT_TITLE").c_str(), LVCFMT_LEFT, theApp.DPI(150));
+    m_song_list_ctrl.InsertColumn(2, theApp.m_str_table.LoadText(L"TXT_ARTIST").c_str(), LVCFMT_LEFT, theApp.DPI(100));
+    m_song_list_ctrl.InsertColumn(3, theApp.m_str_table.LoadText(L"TXT_ALBUM").c_str(), LVCFMT_LEFT, theApp.DPI(150));
+    m_song_list_ctrl.InsertColumn(4, theApp.m_str_table.LoadText(L"TXT_TRACK_NUM").c_str(), LVCFMT_LEFT, theApp.DPI(60));
+    m_song_list_ctrl.InsertColumn(5, theApp.m_str_table.LoadText(L"TXT_GENRE").c_str(), LVCFMT_LEFT, theApp.DPI(100));
+    m_song_list_ctrl.InsertColumn(6, theApp.m_str_table.LoadText(L"TXT_BITRATE").c_str(), LVCFMT_LEFT, theApp.DPI(60));
+    m_song_list_ctrl.InsertColumn(7, theApp.m_str_table.LoadText(L"TXT_YEAR").c_str(), LVCFMT_LEFT, theApp.DPI(60));
+    m_song_list_ctrl.InsertColumn(8, theApp.m_str_table.LoadText(L"TXT_FILE_PATH").c_str(), LVCFMT_LEFT, theApp.DPI(600));
+    m_song_list_ctrl.InsertColumn(9, theApp.m_str_table.LoadText(L"TXT_LAST_PLAYED_TIME").c_str(), LVCFMT_LEFT, theApp.DPI(140));
     m_song_list_ctrl.SetCtrlAEnable(true);
 
-    m_search_edit.SetCueBanner(CCommon::LoadText(IDS_SEARCH_HERE), TRUE);
+    m_search_edit.SetCueBanner(theApp.m_str_table.LoadText(L"TXT_SEARCH_PROMPT").c_str(), TRUE);
 
     return TRUE;  // return TRUE unless you set the focus to a control
                   // 异常: OCX 属性页应返回 FALSE
@@ -460,7 +514,7 @@ void CAllMediaDlg::OnNMRClickSongList(NMHDR *pNMHDR, LRESULT *pResult)
     if (pNMItemActivate->iItem >= 0)
     {
         //弹出右键菜单
-        CMenu* pMenu = theApp.m_menu_set.m_media_lib_popup_menu.GetSubMenu(1);
+        CMenu* pMenu = theApp.m_menu_mgr.GetMenu(MenuMgr::LibRightMenu);
         ASSERT(pMenu != nullptr);
         if (pMenu != nullptr)
         {
@@ -493,3 +547,18 @@ afx_msg LRESULT CAllMediaDlg::OnSearchEditBtnClicked(WPARAM wParam, LPARAM lPara
     return 0;
 }
 
+
+
+void CAllMediaDlg::OnInitMenu(CMenu* pMenu)
+{
+    CMediaLibTabDlg::OnInitMenu(pMenu);
+
+    //设置“添加到播放列表”子菜单状态
+    //未选中状态不会弹出右键菜单，因此“添加到播放列表”子菜单全部设置为可用状态
+    for (UINT id = ID_ADD_TO_DEFAULT_PLAYLIST; id < ID_ADD_TO_MY_FAVOURITE + ADD_TO_PLAYLIST_MAX_SIZE + 1; id++)
+    {
+        pMenu->EnableMenuItem(id, MF_BYCOMMAND | MF_ENABLED);
+    }
+    pMenu->EnableMenuItem(ID_ADD_TO_NEW_PLAYLIST, MF_BYCOMMAND | MF_ENABLED);
+    pMenu->EnableMenuItem(ID_ADD_TO_OTHER_PLAYLIST, MF_BYCOMMAND | MF_ENABLED);
+}

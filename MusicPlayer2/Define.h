@@ -1,21 +1,24 @@
 ﻿#pragma once
 //自定义包含文件
-//#include <conio.h >
 #include <vector>
 #include <io.h>
 #include <string>
-//#include <Windows.h>
+#include <algorithm>
 #include <fstream>
-#include <iostream>
-#include <algorithm>
-#include <tuple>
-#include <deque>
-#include <algorithm>
+#include <sstream>
 #include <iomanip>
 #include <map>
-#include <cmath>
+#include <set>
 #include <unordered_map>
+#include <unordered_set>
+#include <deque>
+#include <list>
+#include <mutex>
+#include <shared_mutex>
+#include <cmath>
 #include <memory>
+#include <functional>
+#include <array>
 using std::ofstream;
 using std::ifstream;
 using std::string;
@@ -23,6 +26,7 @@ using std::wstring;
 using std::vector;
 using std::deque;
 using std::map;
+using std::pair;
 
 //用于BASS音频库的支持
 #include"bass.h"
@@ -69,8 +73,8 @@ using _tstring = std::string;
 //#define MAX_NUM_LENGTH 5000		//定义获取音频文件信息数量的最大值
 #define MAX_SONG_NUM 99999		//播放列表中文件数量的最大值
 
-#define APP_VERSION L"2.76.1"	//程序版本
-#define COPY_RIGHT_YEAR L"2023"
+#define APP_VERSION L"2.77.1"	//程序版本
+#define COPY_RIGHT_YEAR L"2024"
 
 //任务栏图按钮
 #define IDT_PLAY_PAUSE 1321		//任务栏缩略图“播放/暂停”按钮的ID
@@ -108,9 +112,6 @@ using _tstring = std::string;
 #define IDC_SAVE_COMBO_BOX 1990		//定义添加到“另存为”对话框中的组合框的ID
 #define IDC_OPEN_CHECKBOX 1991		//定义添加到“添加文件夹”对话框中的复选框的ID
 
-//添加到系统菜单中的“迷你模式”菜单项的ID
-#define IDM_MINIMODE 112
-
 //均衡器
 #define EQU_CH_NUM 10		//均衡器通道的数量
 const int EQU_STYLE_TABLE[9][EQU_CH_NUM]		//均衡器预设
@@ -142,6 +143,7 @@ const int EQU_STYLE_TABLE[9][EQU_CH_NUM]		//均衡器预设
 #define FAVOURITE_PLAYLIST_NAME L"favourite.playlist"
 #define TEMP_PLAYLIST_NAME L"temp.playlist"
 #define PLAYLIST_EXTENSION L".playlist"
+#define PLAYLIST_EXTENSION_2 L"playlist"
 #define APP_NAME L"MusicPlayer2"
 #define NO_LYRIC_STR L"NoLyric"
 #define DEFAULT_BACKGROUND_NAME L"default_background.jpg"
@@ -166,7 +168,14 @@ const int EQU_STYLE_TABLE[9][EQU_CH_NUM]		//均衡器预设
 #define WM_RECENT_FOLDER_OR_PLAYLIST_CHANGED (WM_USER+140)  //最近打开的文件夹或播放列表发生了改变
 #define WM_SET_UI_FORCE_FRESH_FLAG (WM_USER+141)            // 通知主窗口设置UI强制刷新标志m_ui_thread_para.ui_force_refresh
 
-#define WM_NEXT_USER_MSG (WM_USER+142)
+//通知主窗口清除UI中搜索框中搜索结果，其中wPara为搜索框关联列表元素的类型，在下面几行定义
+//仅当列表元素的内容发生了改变但是总行数未变的情况下需要发送此消息，行数变化的情况已经在UiElement::ListElement::OnRowCountChanged中处理
+#define WM_CLEAR_UI_SERCH_BOX ((WM_USER+142)) 
+#define UI_LIST_TYPE_RECENT_PLAYED 0
+#define UI_LIST_TYPE_FOLDER 1
+#define UI_LIST_TYPE_PLAYLIST 2
+
+#define WM_NEXT_USER_MSG (WM_USER+143)
 
 #ifdef _DEBUG
 #define ADD_TO_PLAYLIST_MAX_SIZE 10         //“添加到播放列表”子菜单中项目的最大数量（不能超过40）

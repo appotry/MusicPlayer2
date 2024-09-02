@@ -7,10 +7,11 @@
 #include "IniHelper.h"
 #include "MusicPlayerCmdHelper.h"
 #include "MessageDlg.h"
-#include "PropertyDlgHelper.h"
+#include "TagSelBaseDlg.h"
 #include "TagLibHelper.h"
 #include "Player.h"
 #include "CueFile.h"
+#include "MusicPlayer2.h"
 
 CTest::CTest()
 {
@@ -51,9 +52,9 @@ void CTest::Test()
     //TestRating();
 
     //TestCueSave();
-    TestFilePathHelper();
-    TestReplaceStringRes();
-    SaveAllStringRes(101, 600);
+    //TestFilePathHelper();
+    //TestStringToInt();
+    TestChinesePingyinMatch();
 }
 
 void CTest::TestStringMatch()
@@ -151,7 +152,7 @@ void CTest::TestCommon()
 void CTest::TestOSUFile()
 {
     COSUFile osu_file{ L"D:\\Program Files\\osu!\\Songs\\66385 u's - Snow halation\\u's - Snow halation (blissfulyoshi) [Insane].osu" };
-    wstring file_name = osu_file.GetAudioFile();
+    wstring file_name = osu_file.GetAudioFileName();
     int a = 0;
 
 }
@@ -203,28 +204,13 @@ void CTest::TestImageResize()
 void CTest::TestCrashDlg()
 {
     //显示错误信息对话框
-    CMessageDlg dlg;
-    dlg.SetWindowTitle(CCommon::LoadText(IDS_ERROR1));
-    dlg.SetInfoText(CCommon::LoadText(IDS_ERROR_MESSAGE));
-
-    CString info = CCommon::LoadTextFormat(IDS_CRASH_INFO, {});
-    info += _T("\r\n");
-    info += theApp.GetSystemInfoString();
-    dlg.SetMessageText(info);
-
-    //设置图标
-    HICON hIcon;
-    HRESULT hr = LoadIconMetric(NULL, IDI_ERROR, LIM_LARGE, &hIcon);
-    if (SUCCEEDED(hr))
-        dlg.SetMessageIcon(hIcon);
-
-    dlg.DoModal();
+    // 待重写(做独立的crash对话框)
 }
 
 void CTest::TestTagParse()
 {
     SongInfo song;
-    CPropertyDlgHelper::GetTagFromFileName(L"666-744FFFF23", FORMULAR_YEAR L"-" FORMULAR_ARTIST L"FFFF" FORMULAR_TITLE, song);
+    CTagSelBaseDlg::GetTagFromFileName(CTagSelBaseDlg::FORMULAR_YEAR + L"-" + CTagSelBaseDlg::FORMULAR_ARTIST + L"FFFF" + CTagSelBaseDlg::FORMULAR_TITLE, L"666-744FFFF23", song);
 
     int a = 0;
 }
@@ -264,20 +250,27 @@ void CTest::TestFilePathHelper()
     ASSERT(folder_name == L"abc.d");
 }
 
-void CTest::TestReplaceStringRes()
+void CTest::TestStringToInt()
 {
-    wstring str{ L"abc%(118)eee%(263)" };
-    CCommon::ReplaceUiStringRes(str);
-    ASSERT(str == L"abc播放eee自动重命名");
+    wstring str1 = L"abc0234ttyyhh";
+    int n1 = CCommon::StringToInt(str1);
+    ASSERT(n1 == 234);
+    wstring str2 = L"abc056";
+    int n2 = CCommon::StringToInt(str2);
+    ASSERT(n2 == 56);
+    wstring str3 = L"876rrtyhfg345hg";
+    int n3 = CCommon::StringToInt(str3);
+    ASSERT(n3 == 876);
+    wstring str4 = L"sdfoeoirglksf6";
+    int n4 = CCommon::StringToInt(str4);
+    ASSERT(n4 == 6);
 }
 
-void CTest::SaveAllStringRes(int min_id, int max_id)
+void CTest::TestChinesePingyinMatch()
 {
-    std::ofstream stream(L"string_res.csv");
-    for (int i = min_id; i <= max_id; i++)
-    {
-        CString str = CCommon::LoadText(i);
-        CCommon::StringCsvNormalize(str);
-        stream << i << ',' << CCommon::UnicodeToStr(str.GetString(), CodeType::ANSI) << std::endl;
-    }
+    ASSERT(theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(L"nh", L"你好世界"));
+    ASSERT(theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(L"nhsj", L"你好世界"));
+    ASSERT(theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(L"nihaoshijie", L"你好世界"));
+    ASSERT(!theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(L"nh", L"你世界"));
+    ASSERT(theApp.m_chinese_pingyin_res.IsStringMatchWithPingyin(L"cxqd", L"春夏秋冬"));
 }

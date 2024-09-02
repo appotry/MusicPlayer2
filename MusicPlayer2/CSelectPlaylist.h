@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "TabDlg.h"
+#include "PlaylistMgr.h"
 #include "ListCtrlEx.h"
 #include "SearchEditCtrl.h"
 #include "MediaLibTabDlg.h"
@@ -26,6 +27,8 @@ public:
     // 完全重新载入标签页数据
     void RefreshTabData();
 
+    bool SetCurSel(const wstring& playlist_path);
+
 private:
 
     bool m_searched{ false };                   // 是否处于搜索状态
@@ -38,11 +41,6 @@ private:
     int m_right_selected_item{ -1 };            // 右侧列表选中的项目的索引
     std::vector<int> m_right_selected_items;    // 右侧列表多选选中的项目的索引
     wstring m_selected_string;
-
-    enum
-    {
-        SPEC_PLAYLIST_NUM = 2       //特殊播放列表的个数（这里是2，默认播放列表和我喜欢的播放列表）
-    };
 
     enum SongColumeIndex
     {
@@ -65,9 +63,6 @@ private:
     CHorizontalSplitter m_splitter_ctrl;
 
 protected:
-    virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
-
-    virtual void OnTabEntered() override;
 
     virtual const vector<SongInfo>& GetSongList() const override;
     virtual int GetItemSelected() const override;
@@ -76,8 +71,11 @@ protected:
     virtual void AfterDeleteFromDisk(const std::vector<SongInfo>& files) override;
     virtual wstring GetSelectedString() const override;
 
-    DECLARE_MESSAGE_MAP()
+    virtual void OnTabEntered() override;
+    virtual bool InitializeControls() override;
+    virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
+    DECLARE_MESSAGE_MAP()
 private:
     // 根据关键字执行快速查找（更新m_search_result）
     void QuickSearch(const wstring& key_words);
@@ -134,4 +132,10 @@ public:
     afx_msg void OnPlaylistSaveAs();
     afx_msg void OnPlaylistFixPathError();
     afx_msg void OnPlaylistBrowseFile();
+    afx_msg void OnRemoveFromPlaylist();
+    afx_msg void OnBnClickedSortButton();
+    afx_msg void OnLibPlaylistSortRecentPlayed();
+    afx_msg void OnLibPlaylistSortRecentCreated();
+    afx_msg void OnLibPlaylistSortName();
+    afx_msg void OnLibPlaylistProperties();
 };

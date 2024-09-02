@@ -377,15 +377,17 @@ static void OtherPropertyToSongInfo(SongInfo& song_info, const std::map<std::wst
     index = disc_number.find(L'/');
     if (index != std::wstring::npos)
     {
-        song_info.total_discs = static_cast<BYTE>(_wtoi(disc_number.substr(index + 1).c_str()));
+        song_info.total_discs = static_cast<BYTE>(CCommon::StringToInt(disc_number.substr(index + 1)));
     }
-    song_info.disc_num = static_cast<BYTE>(_wtoi(disc_number.substr(0, index).c_str()));
+    song_info.disc_num = static_cast<BYTE>(CCommon::StringToInt(disc_number));
 }
 
 template<class T>
 static void WriteOtherProperties(const SongInfo& song_info, T& file)
 {
     TagLib::PropertyMap properties = file.properties();
+    properties["ALBUMARTIST"].clear();
+    properties["DISCNUMBER"].clear();
     if (!song_info.album_artist.empty())
         properties["ALBUMARTIST"].append(song_info.album_artist);
     if (song_info.disc_num != 0)

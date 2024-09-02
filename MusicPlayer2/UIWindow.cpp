@@ -3,6 +3,16 @@
 #include "MusicPlayer2.h"
 #include "MusicPlayerDlg.h"
 
+IPlayerUI* CUIWindow::GetCurUi() const
+{
+    IPlayerUI* minimode_ui{};
+    CMusicPlayerDlg* pDlg = CMusicPlayerDlg::GetInstance();
+    if (pDlg != nullptr && pDlg->IsMiniMode())
+        minimode_ui = pDlg->GetMinimodeDlg()->GetCurUi();
+    if (minimode_ui != nullptr)
+        return minimode_ui;
+    return m_pUI;
+}
 
 void CUIWindow::PreSubclassWindow()
 {
@@ -36,6 +46,7 @@ BEGIN_MESSAGE_MAP(CUIWindow, CStatic)
     ON_WM_MOUSELEAVE()
     ON_MESSAGE(WM_TABLET_QUERYSYSTEMGESTURESTATUS, &CUIWindow::OnTabletQuerysystemgesturestatus)
     ON_WM_RBUTTONDOWN()
+    ON_WM_INITMENU()
 END_MESSAGE_MAP()
 
 
@@ -55,7 +66,7 @@ void CUIWindow::OnLButtonUp(UINT nFlags, CPoint point)
         SLayoutData lyout;
         point1.y = lyout.titlabar_height;
         ClientToScreen(&point1);
-        theApp.m_menu_set.m_main_menu_popup.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
+        theApp.m_menu_mgr.GetMenu(MenuMgr::MainPopupMenu)->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
     }
     else
     {
@@ -145,6 +156,7 @@ void CUIWindow::OnMouseMove(UINT nFlags, CPoint point)
         if (theApp.m_app_setting_data.show_minimode_btn_in_titlebar) ++cnt;
         if (theApp.m_app_setting_data.show_skin_btn_in_titlebar) ++cnt;
         if (theApp.m_app_setting_data.show_settings_btn_in_titlebar) ++cnt;
+        if (theApp.m_app_setting_data.show_dark_light_btn_in_titlebar) ++cnt;
         if (theApp.m_ui_data.ShowWindowMenuBar()) ++cnt;
         // 硬编码的按钮尺寸
         cnt *= theApp.DPI(30);
@@ -175,13 +187,13 @@ void CUIWindow::OnRButtonUp(UINT nFlags, CPoint point)
     {
         CPoint point1;
         GetCursorPos(&point1);
-        theApp.m_menu_set.m_main_menu_popup.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
+        theApp.m_menu_mgr.GetMenu(MenuMgr::MainPopupMenu)->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
     }
     else if (nFlags == MK_SHIFT)		//按住Shift键点击鼠标右键时，弹出系统菜单
     {
         CPoint point1;
         GetCursorPos(&point1);
-        theApp.m_menu_set.m_main_menu_popup.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
+        theApp.m_menu_mgr.GetMenu(MenuMgr::MainPopupMenu)->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point1.x, point1.y, theApp.m_pMainWnd);
     }
     else
     {
@@ -200,7 +212,7 @@ void CUIWindow::OnPaint()
     CMusicPlayerDlg* pMainWindow = CMusicPlayerDlg::GetInstance();
     //需要重绘时通知线程强制重绘
     if (pMainWindow != nullptr)
-        pMainWindow->m_ui_thread_para.ui_force_refresh = true;
+        pMainWindow->UiForceRefresh();
 }
 
 
@@ -214,9 +226,7 @@ void CUIWindow::OnSize(UINT nType, int cx, int cy)
 
     CMusicPlayerDlg* pMainWindow = CMusicPlayerDlg::GetInstance();
     if (pMainWindow != nullptr)
-    {
-        pMainWindow->m_ui_thread_para.ui_force_refresh = true;
-    }
+        pMainWindow->UiForceRefresh();
 }
 
 

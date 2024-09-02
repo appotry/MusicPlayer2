@@ -1,6 +1,7 @@
 ﻿#include "stdafx.h"
 #include "SongDataManager.h"
 #include "MusicPlayer2.h"
+#include "FilePathHelper.h"
 
 CSongDataManager CSongDataManager::m_instance;
 
@@ -33,7 +34,7 @@ void CSongDataManager::SaveSongData(std::wstring path)
     // 写数据
     ar << CString(_T("2.751"));			//写入数据版本
     ar << static_cast<int>(m_song_data.size());		//写入映射容器的大小
-    for (auto& song_data : m_song_data)
+    for (const auto& song_data : m_song_data)
     {
         ar << CString(song_data.first.path.c_str())
             << song_data.second.start_pos.toInt()
@@ -109,6 +110,7 @@ void CSongDataManager::LoadSongData(std::wstring path)
         }
         // LoadSongData执行时主窗口还未启动应该没有其他线程，不过还是加上
         std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
+        m_song_data.reserve(size);
         for (int i{}; i < size; i++)
         {
             ar >> temp;
@@ -238,26 +240,17 @@ void CSongDataManager::LoadSongData(std::wstring path)
                 ar >> song_info.total_discs;
             }
             m_song_data[song_info] = song_info;     // 将读取到的一首歌曲信息添加到映射容器中
-
-            std::wstring file_name{ song_info.GetFileName() };
-            m_song_file_name_map[file_name].push_back(song_info.file_path);
         }
     }
     catch (CArchiveException* exception)
     {
-        CString info;
-        info = CCommon::LoadTextFormat(IDS_SERIALIZE_ERROR, { path, exception->m_cause });
-        theApp.WriteLog(wstring{ info });
+        wstring info = theApp.m_str_table.LoadTextFormat(L"MSG_SERIALIZE_ERROR", { path, exception->m_cause });
+        theApp.WriteLog(info);
     }
     // 关闭对象
     ar.Close();
     // 关闭文件
     file.Close();
-}
-
-void CSongDataManager::SetSongDataModified()
-{
-    m_song_data_modified = true;
 }
 
 bool CSongDataManager::IsSongDataModified() const
@@ -270,29 +263,55 @@ CString CSongDataManager::GetDataVersion() const
     return m_data_version;
 }
 
-void CSongDataManager::SaveSongInfo(const SongInfo& song_info)
+bool CSongDataManager::SetSongID(const SongKey& key, const unsigned __int64 id)
 {
-    if (song_info.file_path.empty())
-        return;
     std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
-    SongInfo& song = m_song_data[song_info];
-    song.file_path = song_info.file_path;
-    song.cue_file_path = song_info.cue_file_path;
-    song.CopyAudioTag(song_info);
-    song.start_pos = song_info.start_pos;
-    song.end_pos = song_info.end_pos;
-    song.bitrate = song_info.bitrate;
-    song.song_id = song_info.song_id;
-    song.is_cue = song_info.is_cue;
-    song.rating = song_info.rating;
-    song.freq = song_info.freq;
-    song.channels = song_info.channels;
-    song.bits = song_info.bits;
+    ASSERT(!key.path.empty());
+    auto iter = m_song_data.find(key);
+    if (iter == m_song_data.end())
+        return false;   // 为避免问题，仅能为媒体库已存在的条目设置id
+    iter->second.song_id = id;
 
-    SetSongDataModified();
+    m_song_data_modified = true;
+    return true;
 }
 
-void CSongDataManager::LoadSongInfo(SongInfo& song_info)
+bool CSongDataManager::GetSongID(const SongKey& key, unsigned __int64& id) const
+{
+    std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
+    ASSERT(!key.path.empty());
+    id = 0;
+    auto iter = m_song_data.find(key);
+    if (iter == m_song_data.end())
+        return false;
+    id = iter->second.song_id;
+    return true;
+}
+
+void CSongDataManager::SaveCueSongInfo(const vector<SongInfo>& songs_info)
+{
+    std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
+    for (const auto& song_info : songs_info)
+    {
+        SongInfo& song = m_song_data[song_info];
+        song.file_path = song_info.file_path;
+        song.cue_file_path = song_info.cue_file_path;
+        song.modified_time = song_info.modified_time;
+        song.CopyAudioTag(song_info);
+        song.start_pos = song_info.start_pos;
+        song.end_pos = song_info.end_pos;
+        song.bitrate = song_info.bitrate;
+        song.freq = song_info.freq;
+        song.bits = song_info.bits;
+        song.channels = song_info.channels;
+        song.is_cue = true;
+        song.info_acquired = true;
+        song.SetChannelInfoAcquired(true);
+    }
+    m_song_data_modified = true;
+}
+
+void CSongDataManager::LoadSongInfo(SongInfo& song_info) const
 {
     std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
     auto iter = m_song_data.find(song_info);
@@ -304,16 +323,15 @@ void CSongDataManager::LoadSongInfo(SongInfo& song_info)
         song_info.start_pos = temp.start_pos;
         song_info.end_pos = temp.end_pos;
         song_info.bitrate = temp.bitrate;
-        song_info.song_id = temp.song_id;
-        song_info.info_acquired = temp.info_acquired;// 以后会更改为仅媒体库内使用，之后删掉这行
         song_info.modified_time = temp.modified_time;
+        song_info.listen_time = temp.listen_time;
         song_info.freq = temp.freq;
         song_info.channels = temp.channels;
         song_info.bits = temp.bits;
     }
 }
 
-void CSongDataManager::LoadSongsInfo(vector<SongInfo>& songs_info)
+void CSongDataManager::LoadSongsInfo(vector<SongInfo>& songs_info) const
 {
     std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
     for (SongInfo& song_info : songs_info)
@@ -327,9 +345,8 @@ void CSongDataManager::LoadSongsInfo(vector<SongInfo>& songs_info)
             song_info.start_pos = temp.start_pos;
             song_info.end_pos = temp.end_pos;
             song_info.bitrate = temp.bitrate;
-            song_info.song_id = temp.song_id;
-            song_info.info_acquired = temp.info_acquired;// 以后会更改为仅媒体库内使用，之后删掉这行
             song_info.modified_time = temp.modified_time;
+            song_info.listen_time = temp.listen_time;
             song_info.freq = temp.freq;
             song_info.channels = temp.channels;
             song_info.bits = temp.bits;
@@ -337,22 +354,7 @@ void CSongDataManager::LoadSongsInfo(vector<SongInfo>& songs_info)
     }
 }
 
-SongInfo CSongDataManager::GetSongInfo(const SongDataMapKey& key)
-{
-    std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
-    SongInfo song;
-    auto iter = m_song_data.find(key);
-    if (iter != m_song_data.end())
-        song = iter->second;
-    if (key.cue_track != 0)
-    {
-        song.track = key.cue_track;
-        song.is_cue = true;
-    }
-    return song;
-}
-
-SongInfo CSongDataManager::GetSongInfo3(const SongInfo& song)
+SongInfo CSongDataManager::GetSongInfo3(const SongInfo& song) const
 {
     std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
     if (song.IsEmpty())
@@ -367,13 +369,24 @@ SongInfo CSongDataManager::GetSongInfo3(const SongInfo& song)
     return tmp;
 }
 
-void CSongDataManager::GetSongData(const std::function<void(const CSongDataManager::SongDataMap&)>& func)
+SongInfo CSongDataManager::GetSongInfo(const SongKey& key) const
+{
+    std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
+    ASSERT(!key.path.empty());
+    SongInfo tmp;
+    auto iter = m_song_data.find(key);
+    if (iter != m_song_data.end())
+        tmp = iter->second;
+    return tmp;
+}
+
+void CSongDataManager::GetSongData(const std::function<void(const CSongDataManager::SongDataMap&)>& func) const
 {
     std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
     func(m_song_data);
 }
 
-bool CSongDataManager::IsItemExist(const SongDataMapKey& key)
+bool CSongDataManager::IsItemExist(const SongKey& key) const
 {
     std::shared_lock<std::shared_mutex> readLock(m_shared_mutex);
     auto iter = m_song_data.find(key);
@@ -385,16 +398,17 @@ void CSongDataManager::AddItem(const SongInfo& song)
     std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
     ASSERT(!song.file_path.empty());
     m_song_data[song] = song;
-    SetSongDataModified();
+    m_song_data_modified = true;
 }
 
-bool CSongDataManager::RemoveItem(const SongDataMapKey& key)
+bool CSongDataManager::RemoveItem(const SongKey& key)
 {
     std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
     auto iter = m_song_data.find(key);
     if (iter != m_song_data.end())
     {
         m_song_data.erase(iter);
+        m_song_data_modified = true;
         return true;
     }
     return false;
@@ -404,17 +418,21 @@ int CSongDataManager::RemoveItemIf(std::function<bool(const SongInfo&)>& fun_con
 {
     std::unique_lock<std::shared_mutex> writeLock(m_shared_mutex);
     // 遍历映射容器，删除不必要的条目。
-    vector<SongDataMapKey> remove;
-    for (const auto& data: m_song_data)
+    int removedCount{};
+    auto iter = m_song_data.begin();
+    while (iter != m_song_data.end())
     {
-        if (fun_condition(data.second))
-            remove.push_back(data.first);
+        if (fun_condition(iter->second))
+        {
+            iter = m_song_data.erase(iter);
+            ++removedCount;
+        }
+        else
+            ++iter;
     }
-    for (const auto& key : remove)
-    {
-        m_song_data.erase(key);
-    }
-    return remove.size();
+    if (removedCount > 0)
+        m_song_data_modified = true;
+    return removedCount;
 }
 
 void CSongDataManager::ClearPlayTime()
@@ -424,7 +442,7 @@ void CSongDataManager::ClearPlayTime()
     {
         data.second.listen_time = 0;
     }
-    SetSongDataModified();
+    m_song_data_modified = true;
 }
 
 void CSongDataManager::ClearLastPlayedTime()
@@ -434,7 +452,7 @@ void CSongDataManager::ClearLastPlayedTime()
     {
         item.second.last_played_time = 0;
     }
-    SetSongDataModified();
+    m_song_data_modified = true;
 }
 
 void CSongDataManager::ChangeFilePath(const wstring& file_path, const wstring& new_path)
@@ -448,52 +466,4 @@ void CSongDataManager::ChangeFilePath(const wstring& file_path, const wstring& n
             song.file_path = new_path;
         m_song_data[new_path] = song;
     }
-}
-
-//计算两个字符串右侧匹配的字符数量
-static int CalcualteStringRightMatchedCharNum(const std::wstring& str1, const std::wstring& str2)
-{
-    size_t index1{ str1.size() - 1 };
-    size_t index2{ str2.size() - 1 };
-    int char_matched{};
-    for (; index1 >= 0 && index2 >= 0; index1--, index2--)
-    {
-        if (str1[index1] == str2[index2])
-            char_matched++;
-        else
-            break;
-    }
-    return char_matched;
-}
-
-bool CSongDataManager::FixWrongFilePath(wstring& file_path)
-{
-    std::wstring file_name{ CFilePathHelper(file_path).GetFileName() };
-    bool fixed{ false };
-    auto iter = m_song_file_name_map.find(file_name);
-    if (iter != m_song_file_name_map.end())
-    {
-        if (iter->second.size() == 1)      //媒体库中同名的文件只有一个时，直接修改为该文件的路径
-        {
-            file_path = iter->second.front();
-            fixed = true;
-        }
-        else if (iter->second.size() > 1)   //媒体库中同名的文件有多个时，查找两个路径末尾相同字符数量最多的那项
-        {
-            size_t best_match_index{};
-            int max_matched_char_mun{};
-            for (size_t i{}; i < iter->second.size(); i++)
-            {
-                int cur_matched_char_num = CalcualteStringRightMatchedCharNum(file_path, iter->second[i]);
-                if (cur_matched_char_num > max_matched_char_mun)
-                {
-                    max_matched_char_mun = cur_matched_char_num;
-                    best_match_index = i;
-                }
-            }
-            file_path = iter->second[best_match_index];
-            fixed = true;
-        }
-    }
-    return CCommon::FileExist(file_path);
 }

@@ -1,17 +1,17 @@
 ﻿<MusicPlayer2>
-	<version>2.76.1</version>
+	<version>2.77.1</version>
 	<GitHub>
-		<link>https://github.com/zhongyang219/MusicPlayer2/releases/download/V2.76.1/MusicPlayer2_V2.76.1_x86.zip</link>
-		<link_x64>https://github.com/zhongyang219/MusicPlayer2/releases/download/V2.76.1/MusicPlayer2_V2.76.1_x64.zip</link_x64>
+		<link>https://github.com/zhongyang219/MusicPlayer2/releases/download/V2.77.1/MusicPlayer2_V2.77.1_x86.zip</link>
+		<link_x64>https://github.com/zhongyang219/MusicPlayer2/releases/download/V2.77.1/MusicPlayer2_V2.77.1_x64.zip</link_x64>
 	</GitHub>
 	<Gitee>
-		<link>https://gitee.com/zhongyang219/MusicPlayer2/releases/download/V2.76.1/MusicPlayer2_V2.76.1_x86.zip</link>
-		<link_x64>https://gitee.com/zhongyang219/MusicPlayer2/releases/download/V2.76.1/MusicPlayer2_V2.76.1_x64.zip</link_x64>
+		<link>https://gitee.com/zhongyang219/MusicPlayer2/releases/download/V2.77.1/MusicPlayer2_V2.77.1_x86.zip</link>
+		<link_x64>https://gitee.com/zhongyang219/MusicPlayer2/releases/download/V2.77.1/MusicPlayer2_V2.77.1_x64.zip</link_x64>
 	</Gitee>
 	<update_contents>
-		<contents_zh_cn>紧急修正无法自动关联歌词文件的问题。\n建议所有使用V2.76版本的用户都更新到此版本。</contents_zh_cn>
-		<contents_en>Urgently fix the problem of not being able to automatically associate lyrics files.\nIt is recommended that all users with version V2.76 update to this version.</contents_en>
+		<contents_zh_cn>此次更新修正了2.77版本的若干问题，没有增加新的功能。\n修正在右键菜单中“添加到播放列表”子菜单有时会异常禁用的问题。\n修正点击“AB重复”按钮时的测试文本没有删除的问题。\n修正“AB重复”按钮鼠标提示不正确的问题。\n修正100%缩放比例下对话框中的控件在垂直方向太挤的问题。\n修正从全屏模式进入迷你模式时歌词文本太大并且显示不全的问题。\n修正aac文件在属性对话框中无法显示内嵌专辑封面的问题。</contents_zh_cn>
+		<contents_en>This update fixed several issues since version 2.77. No new features added.\nFixed the problem that the "Add to Playlist" submenu in the context menu sometimes abnormally disabled.\nFixed the problem that the test text was not deleted when clicking the "AB Repeat" button.\nFixed the problem that the mouse tooltip of the "AB Repeat" button was not correct.\nFixed the problem that the control in the dialog box is too crowded vertically at 100% zoom ratio.\nFixed the problem that lyrics text is too big and incomplete when entering mini mode from full screen mode.\nFixed the problem that the internal album cover of acc files can not be displayed in the property dialog box.\n</contents_en>
 	</update_contents>
 	<!--以下内容为了兼容旧版本程序的检查更新功能-->
-	<contents>紧急修正无法自动关联歌词文件的问题。\n建议所有使用V2.76版本的用户都更新到此版本。</contents>
+	<contents>此次更新修正了2.77版本的若干问题，没有增加新的功能。\n修正在右键菜单中“添加到播放列表”子菜单有时会异常禁用的问题。\n修正点击“AB重复”按钮时的测试文本没有删除的问题。\n修正“AB重复”按钮鼠标提示不正确的问题。\n修正100%缩放比例下对话框中的控件在垂直方向太挤的问题。\n修正从全屏模式进入迷你模式时歌词文本太大并且显示不全的问题。\n修正aac文件在属性对话框中无法显示内嵌专辑封面的问题。</contents>
 </MusicPlayer2>
